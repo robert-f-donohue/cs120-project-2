@@ -1,0 +1,268 @@
+/* ----------------------- */
+/* VARIABLES & BASE STYLES */
+/* ----------------------- */
+:root {
+    --ink: #201a31;
+    --muted: #5f5870;
+    --cream: #fff8ed;
+    --paper: #ffffff;
+    --purple: #3b1f5f;
+    --teal: #16a6ad;
+    --yellow: #ffcc33;
+    --border: #e8dece;
+    --shadow: 0 14px 32px rgba(32, 26, 49, 0.12);
+    --correct: #6aaa64;
+    --present: #c9b458;
+    --absent: #787c7e;
+    --tile-size: clamp(44px, 12vw, 62px);
+    --key-size: clamp(28px, 7vw, 36px);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    color: var(--ink);
+    background-color: var(--cream);
+    line-height: 1.6;
+}
+
+/* ---------------- */
+/* GAME LAYOUT    */
+/* ---------------- */
+.game-shell {
+    width: min(520px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 28px 0 40px;
+    text-align: center;
+}
+
+.game-shell h1 {
+    margin: 0 0 8px;
+    font-size: clamp(2rem, 6vw, 2.8rem);
+    color: var(--purple);
+    letter-spacing: 0.08em;
+}
+
+.game-intro {
+    margin: 0 0 24px;
+    color: var(--muted);
+}
+
+/* ---------------- */
+/* GUESS BOARD    */
+/* ---------------- */
+.guess-board {
+    display: grid;
+    grid-template-columns: repeat(5, var(--tile-size));
+    grid-template-rows: repeat(6, var(--tile-size));
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 28px;
+}
+
+.tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--border);
+    background-color: var(--paper);
+    font-size: clamp(1.2rem, 4vw, 1.75rem);
+    font-weight: 800;
+    text-transform: uppercase;
+    transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease;
+}
+
+.tile.correct {
+    background-color: var(--correct);
+    border-color: var(--correct);
+    color: #ffffff;
+}
+
+.tile.present {
+    background-color: var(--present);
+    border-color: var(--present);
+    color: #ffffff;
+}
+
+.tile.absent {
+    background-color: var(--absent);
+    border-color: var(--absent);
+    color: #ffffff;
+}
+
+/* ---------------- */
+/* INPUT AREA     */
+/* ---------------- */
+.guess-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.guess-controls label {
+    font-weight: 700;
+}
+
+#guessInput {
+    width: 160px;
+    padding: 10px 12px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 1.1rem;
+    text-transform: lowercase;
+}
+
+#guessInput:focus {
+    outline: 2px solid var(--teal);
+    border-color: var(--teal);
+}
+
+#guessButton,
+#restartButton {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--purple);
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+#restartButton {
+    margin-top: 20px;
+    background-color: var(--teal);
+}
+
+.message {
+    min-height: 24px;
+    margin: 0 0 20px;
+    color: var(--muted);
+    font-weight: 700;
+}
+
+/* ---------------- */
+/* LOSS POPUP     */
+/* ---------------- */
+.loss-popup {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background-color: rgba(32, 26, 49, 0.55);
+    z-index: 100;
+}
+
+.loss-popup-box {
+    width: min(360px, 100%);
+    padding: 28px 24px;
+    border-radius: 14px;
+    background-color: var(--paper);
+    box-shadow: var(--shadow);
+    text-align: center;
+}
+
+.loss-popup-box h2 {
+    margin: 0 0 12px;
+    font-size: 1.5rem;
+    color: var(--purple);
+}
+
+.loss-popup-box p {
+    margin: 0 0 20px;
+    font-size: 1.1rem;
+    color: var(--ink);
+}
+
+#lossPopupClose {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--teal);
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* ---------------- */
+/* USED LETTERS   */
+/* ---------------- */
+.used-letters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+.letter-key {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--key-size);
+    height: var(--key-size);
+    border-radius: 6px;
+    background-color: var(--paper);
+    border: 2px solid var(--border);
+    font-size: clamp(0.75rem, 2.5vw, 0.95rem);
+    font-weight: 800;
+    text-transform: uppercase;
+    transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease;
+}
+
+.letter-key.correct {
+    background-color: var(--correct);
+    border-color: var(--correct);
+    color: #ffffff;
+}
+
+.letter-key.present {
+    background-color: var(--present);
+    border-color: var(--present);
+    color: #ffffff;
+}
+
+.letter-key.absent {
+    background-color: var(--absent);
+    border-color: var(--absent);
+    color: #ffffff;
+}
+
+/* ------------------------ */
+/* RESPONSIVE / MOBILE    */
+/* ------------------------ */
+@media (max-width: 600px) {
+    .game-shell {
+        width: calc(100% - 20px);
+        padding-top: 18px;
+    }
+
+    .guess-board {
+        gap: 4px;
+    }
+
+    .guess-controls {
+        flex-direction: column;
+    }
+
+    #guessInput {
+        width: 100%;
+        max-width: 220px;
+    }
+
+    .used-letters {
+        max-width: 100%;
+        gap: 4px;
+    }
+}

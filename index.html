@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordle</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<!--
+    Wordle game board.
+    The 6x5 tile grid and A-Z used letter board are built in JavaScript.
+-->
+<main class="game-shell">
+    <h1>Wordle</h1>
+    <p class="game-intro">Guess the 5-letter word in 6 tries.</p>
+
+    <div id="guessBoard" class="guess-board" aria-label="Guess board"></div>
+
+    <!-- User types a 5-letter guess and clicks Guess to submit it. -->
+    <div class="guess-controls">
+        <label for="guessInput">Your guess:</label>
+        <input type="text" id="guessInput" maxlength="5" autocomplete="off">
+        <input type="button" id="guessButton" value="Guess">
+    </div>
+
+    <p id="message" class="message" aria-live="polite"></p>
+
+    <!-- Shows each letter used and whether it was correct, present, or absent. -->
+    <div id="usedLetters" class="used-letters" aria-label="Used letters"></div>
+
+    <!-- Hidden until the player wins or loses. -->
+    <input type="button" id="restartButton" value="Play Again" style="display: none;">
+</main>
+
+<!-- Shown when the player uses all 6 guesses without winning. -->
+<div id="lossPopup" class="loss-popup" style="display: none;" role="dialog" aria-labelledby="lossPopupTitle" aria-modal="true">
+    <div class="loss-popup-box">
+        <h2 id="lossPopupTitle">Out of guesses!</h2>
+        <p id="lossPopupMessage"></p>
+        <input type="button" id="lossPopupClose" value="OK">
+    </div>
+</div>
+
+<script>
+    /*
+        Dictionary of 5-letter words used to pick the answer.
+        Target word is chosen randomly from this array.
+        Guesses can be any 5-letter word.
+    */
+    let dictionary = [
+        "apple",
+        "beach",
+        "chair",
+        "dance",
+        "eagle",
+        "flame",
+        "grape",
+        "house",
+        "ivory",
+        "jolly",
+        "kneel",
+        "lemon",
+        "music",
+        "noble",
+        "ocean",
+        "piano",
+        "queen",
+        "river",
+        "storm",
+        "table",
+        "ultra",
+        "vivid",
+        "waltz",
+        "xenon",
+        "yacht",
+        "zebra",
+        "bread",
+        "crane",
+        "dream",
+        "flute",
+        "ghost",
+        "heart",
+        "light",
+        "mango",
+        "night",
+        "olive",
+        "pride",
+        "quiet",
+        "royal",
+        "snake",
+    ];
+
+    /*
+        Tracks the best-known status for each letter.
+        Green > yellow > grey.
+    */
+    let statusRank = {
+        absent: 1,
+        present: 2,
+        correct: 3,
+    };
+
+    let game;
+    let tiles = [];
+    let letterKeys = {};
+
+    class WordleGame {
+        /*
+            Stores the game state and scoring rules for one round.
+        */
+        constructor() {
+            this.answer = "";
+            this.currentRow = 0;
+            this.maxGuesses = 6;
+            this.isOver = false;
+            this.letterStates = {};
+        }
+
+        pickAnswer() {
+            /*
+                Chooses a random word from the dictionary and logs it
+                to the console for debugging.
+
+                Inputs:
+                - None
+
+                Outputs:
+                - Sets this.answer to a random dictionary word
+            */
+            let index = Math.floor(Math.random() * dictionary.length);
+            this.answer = dictionary[index];
+            // Log the answer for QA/QC purposes while testing.
+            console.log("Answer:", this.answer);
+        }
+
+        isValidGuess(word) {
+            /*
+                Checks that guess is exactly 5 letters (a-z only).
+
+                Inputs:
+                - word: player's guess
+
+                Outputs:
+                - true if valid, false otherwise
+            */
+            return word.length === 5 && /^[a-z]+$/.test(word);
+        }
+
+        scoreGuess(guess) {
+            /*
+                Scores a guess using Wordle rules, including the
+                duplicate-letter rule from the assignment.
+
+                Pass 1 marks correct letters and counts how many of
+                each letter remain in the answer.
+                Pass 2 marks present or absent for the other letters.
+
+                Inputs:
+                - guess: a valid 5-letter word
+
+                Outputs:
+                - Array of 5 statuses: "correct", "present", or "absent"
+            */
+            let results = ["absent", "absent", "absent", "absent", "absent"];
+            let remainingCounts = {};
+
+            // Count how many times each letter appears in the answer.
+            this.answer.split("").forEach((letter) => {
+                if (remainingCounts[letter] === undefined) {
+                    remainingCounts[letter] = 0;
+                }
+
+                remainingCounts[letter] += 1;
+            });
+
+            // Mark letters in the correct spot as green.
+            guess.split("").forEach((letter, index) => {
+                if (letter === this.answer[index]) {
+                    results[index] = "correct";
+                    remainingCounts[letter] -= 1;
+                }
+            });
+
+            // Mark leftover letters as yellow or grey.
+            guess.split("").forEach((letter, index) => {
+                if (results[index] !== "correct") {
+                    if (remainingCounts[letter] > 0) {
+                        results[index] = "present";
+                        remainingCounts[letter] -= 1;
+                    } else {
+                        results[index] = "absent";
+                    }
+                }
+            });
+
+            return results;
+        }
+
+        updateUsedLetters(results, guess) {
+            /*
+                Updates the used letter board so each letter keeps
+                its best-known status.
+
+                Inputs:
+                - results: array of tile statuses for the guess
+                - guess: the 5-letter word that was guessed
+
+                Outputs:
+                - Updates this.letterStates
+            */
+            guess.split("").forEach((letter, index) => {
+                let newStatus = results[index];
+                let oldStatus = this.letterStates[letter];
+
+                // Keep the better color if this letter was guessed before.
+                if (
+                    oldStatus === undefined ||
+                    statusRank[newStatus] > statusRank[oldStatus]
+                ) {
+                    this.letterStates[letter] = newStatus;
+                }
+            });
+        }
+
+        submitGuess(word) {
+            /*
+                Validates a guess and returns either an error message
+                or the scoring result for a valid guess.
+
+                Inputs:
+                - word: the player's guess
+
+                Outputs:
+                - { ok: false, message: "..." } or
+                  { ok: true, results: [...], guess: word }
+            */
+            if (this.isOver) {
+                return {
+                    ok: false,
+                    message: "This game is over. Click Play Again to start a new round.",
+                };
+            }
+
+            // Reject guesses that are not exactly 5 letters.
+            if (!this.isValidGuess(word)) {
+                return {
+                    ok: false,
+                    message: "Each guess must be exactly 5 letters (a-z only).",
+                };
+            }
+
+            let results = this.scoreGuess(word);
+            this.updateUsedLetters(results, word);
+            this.currentRow += 1;
+
+            // End the game after a win or after 6 guesses.
+            if (word === this.answer) {
+                this.isOver = true;
+            } else if (this.currentRow >= this.maxGuesses) {
+                this.isOver = true;
+            }
+
+            return {
+                ok: true,
+                results: results,
+                guess: word,
+                won: word === this.answer,
+                lost: this.isOver && word !== this.answer,
+            };
+        }
+
+        reset() {
+            /*
+                Clears the current game state so a new round can begin.
+
+                Inputs:
+                - None
+
+                Outputs:
+                - Resets row count, letter states, and game-over flag
+            */
+            this.answer = "";
+            this.currentRow = 0;
+            this.isOver = false;
+            this.letterStates = {};
+        }
+    }
+
+    function buildBoard() {
+        /*
+            Builds the 6x5 guess board in the page.
+
+            Inputs:
+            - None
+
+            Outputs:
+            - 30 tile elements inside #guessBoard
+        */
+        let board = document.getElementById("guessBoard");
+        board.innerHTML = "";
+        tiles = [];
+
+        // Create 6 rows with 5 tiles in each row.
+        for (let row = 0; row < 6; row++) {
+            for (let col = 0; col < 5; col++) {
+                let tile = document.createElement("div");
+                tile.className = "tile";
+                tile.setAttribute("data-row", row);
+                tile.setAttribute("data-col", col);
+                board.appendChild(tile);
+                tiles.push(tile);
+            }
+        }
+    }
+
+    function buildUsedLetterBoard() {
+        /*
+            Builds the A-Z used letter board.
+
+            Inputs:
+            - None
+
+            Outputs:
+            - 26 letter key elements inside #usedLetters
+        */
+        let usedLetters = document.getElementById("usedLetters");
+        usedLetters.innerHTML = "";
+        letterKeys = {};
+
+        let alphabet = "abcdefghijklmnopqrstuvwxyz";
+
+        // Build one key for each letter in the alphabet.
+        alphabet.split("").forEach((letter) => {
+            let key = document.createElement("div");
+            key.className = "letter-key";
+            key.textContent = letter;
+            key.setAttribute("data-letter", letter);
+            usedLetters.appendChild(key);
+            letterKeys[letter] = key;
+        });
+    }
+
+    function getTile(row, col) {
+        /*
+            Finds one tile on the board.
+
+            Inputs:
+            - row: guess row number
+            - col: tile column number
+
+            Outputs:
+            - The matching tile element
+        */
+        return tiles[row * 5 + col];
+    }
+
+    function renderGuess(row, guess, results) {
+        /*
+            Displays one guess row on the board with letter colors.
+
+            Inputs:
+            - row: which row to fill
+            - guess: the 5-letter word
+            - results: array of tile statuses
+
+            Outputs:
+            - Updated tile text and color classes
+        */
+        guess.split("").forEach((letter, index) => {
+            let tile = getTile(row, index);
+            tile.textContent = letter;
+            // Remove old colors before applying the new result.
+            tile.classList.remove("correct", "present", "absent");
+            tile.classList.add(results[index]);
+        });
+    }
+
+    function renderUsedLetters(letterStates) {
+        /*
+            Updates the used letter board to match the best-known
+            status for each letter.
+
+            Inputs:
+            - letterStates: object mapping letters to statuses
+
+            Outputs:
+            - Updated classes on each letter key
+        */
+        Object.keys(letterKeys).forEach((letter) => {
+            let key = letterKeys[letter];
+            key.classList.remove("correct", "present", "absent");
+
+            // Only color letters that have been guessed at least once.
+            if (letterStates[letter] !== undefined) {
+                key.classList.add(letterStates[letter]);
+            }
+        });
+    }
+
+    function clearBoard() {
+        /*
+            Clears every tile on the guess board.
+
+            Inputs:
+            - None
+
+            Outputs:
+            - Empty tiles with no color classes
+        */
+        tiles.forEach((tile) => {
+            tile.textContent = "";
+            tile.classList.remove("correct", "present", "absent");
+        });
+    }
+
+    function clearUsedLetters() {
+        /*
+            Resets the used letter board to its unused state.
+
+            Inputs:
+            - None
+
+            Outputs:
+            - Letter keys with no color classes
+        */
+        Object.keys(letterKeys).forEach((letter) => {
+            letterKeys[letter].classList.remove("correct", "present", "absent");
+        });
+    }
+
+    function showMessage(text) {
+        /*
+            Displays a helper or error message below the guess controls.
+
+            Inputs:
+            - text: message to show
+
+            Outputs:
+            - Updated message paragraph
+        */
+        document.getElementById("message").textContent = text;
+    }
+
+    function showRestartButton() {
+        /*
+            Shows the Play Again button after a win or loss.
+
+            Inputs:
+            - None
+
+            Outputs:
+            - Visible restart button
+        */
+        document.getElementById("restartButton").style.display = "inline-block";
+    }
+
+    function hideRestartButton() {
+        /*
+            Hides the Play Again button at the start of a new game.
+
+            Inputs:
+            - None
+
+            Outputs:
+            - Hidden restart button
+        */
+        document.getElementById("restartButton").style.display = "none";
+    }
+
+    function showLossPopup(answer) {
+        /*
+            Shows a custom popup with the answer when the player loses.
+
+            Inputs:
+            - answer: the word they did not guess
+
+            Outputs:
+            - Visible loss popup with the answer
+        */
+        document.getElementById("lossPopupMessage").textContent =
+            "The word was: " + answer + ".";
+        document.getElementById("lossPopup").style.display = "flex";
+    }
+
+    function hideLossPopup() {
+        /*
+            Hides the loss popup.
+
+            Inputs:
+            - None
+
+            Outputs:
+            - Hidden loss popup
+        */
+        document.getElementById("lossPopup").style.display = "none";
+    }
+
+    function setGuessControlsEnabled(isEnabled) {
+        /*
+            Enables or disables the guess input and button.
+
+            Inputs:
+            - isEnabled: true to allow guessing, false to lock controls
+
+            Outputs:
+            - Updated disabled state on input and button
+        */
+        document.getElementById("guessInput").disabled = !isEnabled;
+        document.getElementById("guessButton").disabled = !isEnabled;
+    }
+
+    function handleGuess() {
+        /*
+            Reads guess from the input box, submits it to the game,
+            and updates the board and end-of-game UI.
+
+            Inputs:
+            - None
+
+            Outputs:
+            - Updated board, used letters, and game status
+        */
+        let guessInput = document.getElementById("guessInput");
+        let word = guessInput.value.toLowerCase().trim();
+        let result = game.submitGuess(word);
+
+        // Stop if the guess was invalid.
+        if (!result.ok) {
+            showMessage(result.message);
+            return;
+        }
+
+        // currentRow already increased, subtract 1 for display.
+        let row = game.currentRow - 1;
+        renderGuess(row, result.guess, result.results);
+        renderUsedLetters(game.letterStates);
+        guessInput.value = "";
+        showMessage("");
+
+        if (result.won) {
+            showMessage("You got it! Nice work.");
+            showRestartButton();
+            setGuessControlsEnabled(false);
+            return;
+        }
+
+        // Show answer in a popup when all 6 guesses are used.
+        if (result.lost) {
+            showLossPopup(game.answer);
+            showRestartButton();
+            setGuessControlsEnabled(false);
+        }
+    }
+
+    function handleRestart() {
+        /*
+            Starts a brand new game with a fresh board and answer.
+
+            Inputs:
+            - None
+
+            Outputs:
+            - Reset game state and UI
+        */
+        game.reset();
+        game.pickAnswer();
+        clearBoard();
+        clearUsedLetters();
+        hideRestartButton();
+        hideLossPopup();
+        setGuessControlsEnabled(true);
+        showMessage("");
+        document.getElementById("guessInput").value = "";
+        // Put cursor back in the guess box for new game.
+        document.getElementById("guessInput").focus();
+    }
+
+    window.onload = function() {
+        /*
+            window.onload waits until the page has fully loaded before
+            building the board and assigning event handlers.
+        */
+        game = new WordleGame();
+        buildBoard();
+        buildUsedLetterBoard();
+        game.pickAnswer();
+
+        // Connect button clicks to game handlers.
+        document.getElementById("guessButton").onclick = handleGuess;
+        document.getElementById("restartButton").onclick = handleRestart;
+        document.getElementById("lossPopupClose").onclick = hideLossPopup;
+    };
+</script>
+</body>
+</html>
