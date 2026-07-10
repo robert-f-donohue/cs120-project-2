@@ -119,7 +119,7 @@
 
         pickAnswer() {
             /*
-                Chooses a random word from the dictionary and logs it
+                Chooses random word from dictionary and logs it
                 to the console for debugging.
 
                 Inputs:
@@ -150,7 +150,7 @@
         scoreGuess(guess) {
             /*
                 Scores a guess using Wordle rules, including the
-                duplicate-letter rule from the assignment.
+                duplicate-letter.
 
                 Pass 1 marks correct letters and counts how many of
                 each letter remain in the answer.
@@ -470,7 +470,7 @@
 
     function showLossPopup(answer) {
         /*
-            Shows a custom popup with the answer when the player loses.
+            Shows a popup with the answer when the player loses.
 
             Inputs:
             - answer: the word they did not guess
@@ -545,7 +545,7 @@
             return;
         }
 
-        // Show answer in a popup when all 6 guesses are used.
+        // Show answer in popup when all 6 guesses are used.
         if (result.lost) {
             showLossPopup(game.answer);
             showRestartButton();
@@ -555,7 +555,7 @@
 
     function handleRestart() {
         /*
-            Starts a brand new game with a fresh board and answer.
+            Starts brand new game with new board and answer.
 
             Inputs:
             - None
